@@ -4,10 +4,10 @@
 
 int main(){
     char *symbols[] = {
-        "|", "+=",
+        "+", "+="
     };
     c_lexer lexer = create_lexer(
-        "this is | += a stream of tokens",
+        "++= +=+ ++ _name_of_thing()",
         symbols,
         2,
         0,

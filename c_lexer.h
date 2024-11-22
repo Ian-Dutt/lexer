@@ -100,23 +100,28 @@ void reset_lexer(c_lexer *lexer){
 }
 
 int is_new_token(c_lexer *lexer, size_t i){
+    size_t max_length = 0;
+    int index = 0;
     if(isspace(lexer->stream[i])){
         return -1;
     }
 
     for(int j = 0; j < lexer->symbols_length; ++j){
         if(strncmp(lexer->stream + i, lexer->symbols[j].str, lexer->symbols[j].length) == 0){
-            return j + 1;
+            if(lexer->symbols[j].length > max_length){
+                index = j + 1;
+                max_length = lexer->symbols[j].length;
+            }
         }
     }
 
-    return 0;
+    return index;
 }
 
 int lexer_type(c_lexer *lexer, const char *token){
     int i = 0;
     for(; i < lexer->symbols_length; ++i){
-        puts(lexer->symbols[i].str);
+        // puts(lexer->symbols[i].str);
         if(strcmp(lexer->symbols[i].str, token) == 0){
             return 1;
         }
@@ -132,6 +137,20 @@ int lexer_id(c_lexer *lexer, const char *token){
         }
     }
     return -1;
+}
+
+int is_word(const char *token){
+    if(token[0] == '\0' || (!isalpha(token[0]) && token[0] != '_')){
+        return -1;
+    }
+
+    for(int i = 1; token[i]; ++i){
+        if(!isalnum(token[i]) && token[i] != '_'){
+            return -i - 1;
+        }
+    }
+
+    return 1;
 }
 
 int next_token(c_lexer *lexer, c_token *token){
@@ -157,6 +176,7 @@ int next_token(c_lexer *lexer, c_token *token){
         i = symbol->length;
 
     }else{
+
         while(index < lexer->length && !is_new_token(lexer, index)){
             tmp[i++] = lexer->stream[index++];
         }
@@ -168,6 +188,12 @@ int next_token(c_lexer *lexer, c_token *token){
         }
         
         tmp[i] = '\0';
+        int word = is_word(tmp);
+
+        if(word < 0){
+            fprintf(stderr, "Unknown Symbol '%s' found in '%s'\n", tmp + (-word - 1), tmp);
+            return 0;
+        }
     }
     token->token.length = i;
     c_str_realloc(&(token->token.str), tmp);
