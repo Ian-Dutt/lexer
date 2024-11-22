@@ -25,7 +25,7 @@ typedef struct _c_lexer_ {
     const_str *symbols;
     int symbols_length;
     // FILE *log;
-    char **string_delims;
+    const_str *string_delims;
     int delims_length;
     char escape_char;
 } c_lexer;
@@ -36,7 +36,7 @@ typedef struct _c_token_{
     int id;
 } c_token;
 
-c_lexer create_lexer(const char *stream, char **symbols, int num_symbols, int lex_string, char **string_tokens, int num_strs, char escape_char);
+c_lexer create_lexer(const char *stream, char **symbols, int num_symbols, char **string_tokens, int num_strs, char escape_char);
 void delete_lexer(c_lexer *lexer);
 void reset_lexer(c_lexer *lexer);
 
@@ -44,6 +44,9 @@ int next_token(c_lexer *lexer, c_token *token);
 
 #define C_LEXER_IMPL
 #ifdef C_LEXER_IMPL
+
+#include <stdarg.h>
+#define ERR(...) fprintf(stderr, __VA_ARGS__)
 
 char *c_strdup(const char *s) {
     size_t size = strlen(s) + 1;
@@ -65,8 +68,19 @@ void c_str_realloc(char **dest, const char *s) {
     }
 }
 
-c_lexer create_lexer(const char *stream, char **symbols, int num_symbols, int lex_string, char **string_tokens, int num_strs, char escape_char){
+c_lexer create_lexer(const char *stream, char **symbols, int num_symbols, char **string_tokens, int num_strs, char escape_char){
     c_lexer lexer = {0};
+    int i, j;
+
+    for(i = 0; i < num_strs; ++i){
+        for(j = 0; j < num_symbols; ++j){
+            if(strstr(string_tokens[i], symbols[j])){
+                ERR("Unable to create lexer. Start of string '%s' is in symbol '%s'\n", string_tokens[i], symbols[j]);
+                exit(1);
+            }
+        }
+    }
+
     lexer.length = strlen(stream);
     lexer.stream = c_strdup(stream);
     
@@ -75,15 +89,32 @@ c_lexer create_lexer(const char *stream, char **symbols, int num_symbols, int le
         // lexer.symbols = symbols;
         lexer.symbols = malloc(num_symbols * sizeof(const_str));
 
-        for(int i = 0; i < num_symbols; ++i){
+        if(lexer.symbols == NULL){
+            ERR("Unable to allocate memory\n");
+            exit(1);
+        }
+
+        for(i = 0; i < num_symbols; ++i){
             lexer.symbols[i] = (const_str){symbols[i], strlen(symbols[i])};
         }
     }
 
-    if(lex_string){
-        lexer.string_delims = string_tokens;
+    if(num_strs){
         lexer.delims_length = num_strs;
         lexer.escape_char = escape_char;
+
+        lexer.string_delims = malloc(num_symbols * sizeof(const_str));
+
+        if(lexer.symbols == NULL){
+            ERR("Unable to allocate memory\n");
+            free(lexer.symbols);
+            free(lexer.stream);
+            exit(1);
+        }
+
+        for(i = 0; i < num_strs; ++i){
+            lexer.string_delims[i] = (const_str){string_tokens[i], strlen(string_tokens[i])};
+        }
     }
 
     return lexer;
@@ -91,6 +122,8 @@ c_lexer create_lexer(const char *stream, char **symbols, int num_symbols, int le
 
 void delete_lexer(c_lexer *lexer){
     free(lexer->stream);
+    free(lexer->string_delims);
+    free(lexer->symbols);
     memset(lexer, 0, sizeof(c_lexer));
 }
 void reset_lexer(c_lexer *lexer){
@@ -102,12 +135,19 @@ void reset_lexer(c_lexer *lexer){
 int is_new_token(c_lexer *lexer, size_t i){
     size_t max_length = 0;
     int index = 0;
-    if(isspace(lexer->stream[i])){
+    const char *start = lexer->stream + i;
+    if(isspace(*start)){
         return -1;
     }
 
+    for(int j = 0; j < lexer->delims_length; ++j){
+        if(strncmp(start, lexer->string_delims[j].str, lexer->string_delims[j].length) == 0){
+            return -1;
+        }
+    }
+
     for(int j = 0; j < lexer->symbols_length; ++j){
-        if(strncmp(lexer->stream + i, lexer->symbols[j].str, lexer->symbols[j].length) == 0){
+        if(strncmp(start, lexer->symbols[j].str, lexer->symbols[j].length) == 0){
             if(lexer->symbols[j].length > max_length){
                 index = j + 1;
                 max_length = lexer->symbols[j].length;

@@ -6,14 +6,16 @@ int main(){
     char *symbols[] = {
         "+", "+="
     };
+    char *str_dels[] = {
+        "\"", "+"
+    };
     c_lexer lexer = create_lexer(
         "++= +=+ ++ _name_of_thing()",
         symbols,
         2,
-        0,
-        NULL,
-        0,
-        '\0'
+        str_dels,
+        3,
+        '\\'
     );
 
     c_token token = {0};
