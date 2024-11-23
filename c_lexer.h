@@ -50,15 +50,6 @@ int next_token(c_lexer *lexer, c_token *token);
 #define ERR(...) fprintf(stderr, __VA_ARGS__)
 #define TOKEN_STRING -2
 
-char *c_strdup(const char *s) {
-    size_t size = strlen(s) + 1;
-    char *p = (char *)malloc(size);
-    if (p != NULL) {
-        memcpy(p, s, size);
-    }
-    return p;
-}
-
 void c_str_realloc(char **dest, const char *s) {
     size_t size = strlen(s) + 1;
     char *p = (char *)realloc(*dest, size);
@@ -85,7 +76,7 @@ c_lexer create_lexer(const char *stream, char **symbols, int num_symbols, char *
     }
 
     lexer.length = strlen(stream);
-    lexer.stream = c_strdup(stream);
+    c_str_realloc(&lexer.stream, stream);
     
     if(num_symbols){
         lexer.symbols_length = num_symbols;
