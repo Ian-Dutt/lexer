@@ -7,14 +7,14 @@ int main(){
         "+", "+="
     };
     char *str_dels[] = {
-        "\"", "+"
+        "\"", "'"
     };
     c_lexer lexer = create_lexer(
-        "++= +=+ ++ _name_of_thing()",
+        "\"This is a ++ string \\\" \" 'this is a \" string' ' this is dead",
         symbols,
         2,
         str_dels,
-        3,
+        2,
         '\\'
     );
 

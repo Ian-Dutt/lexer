@@ -28,6 +28,7 @@ typedef struct _c_lexer_ {
     const_str *string_delims;
     int delims_length;
     char escape_char;
+    int in_string;
 } c_lexer;
 
 typedef struct _c_token_{
@@ -47,6 +48,7 @@ int next_token(c_lexer *lexer, c_token *token);
 
 #include <stdarg.h>
 #define ERR(...) fprintf(stderr, __VA_ARGS__)
+#define TOKEN_STRING -2
 
 char *c_strdup(const char *s) {
     size_t size = strlen(s) + 1;
@@ -70,6 +72,7 @@ void c_str_realloc(char **dest, const char *s) {
 
 c_lexer create_lexer(const char *stream, char **symbols, int num_symbols, char **string_tokens, int num_strs, char escape_char){
     c_lexer lexer = {0};
+    lexer.in_string = 0;
     int i, j;
 
     for(i = 0; i < num_strs; ++i){
@@ -132,12 +135,27 @@ void reset_lexer(c_lexer *lexer){
     lexer->index = 0;
 }
 
+int is_string(c_lexer *lexer, const char *word){
+    int i;
+    for(i = 0; i < lexer->delims_length; ++i){
+        if(strncmp(word, lexer->string_delims[i].str, lexer->string_delims[i].length) == 0){
+            lexer->in_string = 1;
+            return i + 1;
+        }
+    }
+    return 0;
+}
+
 int is_new_token(c_lexer *lexer, size_t i){
     size_t max_length = 0;
     int index = 0;
     const char *start = lexer->stream + i;
     if(isspace(*start)){
         return -1;
+    }
+
+    if((index = is_string(lexer, start))){
+        return index;
     }
 
     for(int j = 0; j < lexer->delims_length; ++j){
@@ -201,10 +219,30 @@ int next_token(c_lexer *lexer, c_token *token){
     while(index < lexer->length && isspace(lexer->stream[index])){
         index++;
     }
-
+    
     int sym = is_new_token(lexer, index);
+    if(lexer->in_string){
+        const_str *str = &lexer->string_delims[sym - 1];
 
-    if(sym){
+        for(index = index + str->length; lexer->stream[index]; ++index){
+            // printf("%c   ", lexer->stream[index]);
+            if(lexer->stream[index - 1] != lexer->escape_char && strncmp(lexer->stream + index, str->str, str->length) == 0){
+                lexer->in_string = 0;
+                break;
+            }
+            tmp[i++] = lexer->stream[index];
+        }
+
+        tmp[i] = '\0';
+
+        if(lexer->in_string){
+            ERR("Ran into end of tokens while parsing string starting with '%s'\n", str->str);
+            return 0;
+        }
+
+        lexer->index = index + str->length;
+
+    }else if(sym){
         const_str *symbol = &lexer->symbols[sym - 1];
         // printf("%d\n", sym);
 
