@@ -34,7 +34,7 @@ typedef struct _c_lexer_ {
 typedef struct _c_token_{
     mut_str token;
     int type;
-    int id;
+    // int id;
 } c_token;
 
 c_lexer create_lexer(const char *stream, char **symbols, int num_symbols, char **string_tokens, int num_strs, char escape_char);
@@ -48,7 +48,7 @@ int next_token(c_lexer *lexer, c_token *token);
 
 #include <stdarg.h>
 #define ERR(...) fprintf(stderr, __VA_ARGS__)
-#define TOKEN_STRING -2
+// #define TOKEN_STRING -2
 
 void c_str_realloc(char **dest, const char *s) {
     size_t size = strlen(s) + 1;
@@ -167,26 +167,17 @@ int is_new_token(c_lexer *lexer, size_t i){
     return index;
 }
 
-int lexer_type(c_lexer *lexer, const char *token){
+int token_type(c_lexer *lexer, const char *token){
     int i = 0;
     for(; i < lexer->symbols_length; ++i){
         // puts(lexer->symbols[i].str);
         if(strcmp(lexer->symbols[i].str, token) == 0){
-            return 1;
+            return i + 2;
         }
     }
     return 0;
 }
 
-int lexer_id(c_lexer *lexer, const char *token){
-    int i = 0;
-    for(; i < lexer->symbols_length; ++i){
-        if(strcmp(lexer->symbols[i].str, token) == 0){
-            return i;
-        }
-    }
-    return -1;
-}
 
 int is_word(const char *token){
     if(token[0] == '\0' || (!isalpha(token[0]) && token[0] != '_')){
@@ -206,6 +197,7 @@ int next_token(c_lexer *lexer, c_token *token){
     size_t index = lexer->index;
     size_t i = 0;
     char tmp[1000];
+    token->type = 0;
 
     while(index < lexer->length && isspace(lexer->stream[index])){
         index++;
@@ -216,7 +208,6 @@ int next_token(c_lexer *lexer, c_token *token){
         const_str *str = &lexer->string_delims[sym - 1];
 
         for(index = index + str->length; lexer->stream[index]; ++index){
-            // printf("%c   ", lexer->stream[index]);
             if(lexer->stream[index - 1] != lexer->escape_char && strncmp(lexer->stream + index, str->str, str->length) == 0){
                 lexer->in_string = 0;
                 break;
@@ -232,12 +223,10 @@ int next_token(c_lexer *lexer, c_token *token){
         }
 
         lexer->index = index + str->length;
-
+        token->type = 1;
     }else if(sym){
         const_str *symbol = &lexer->symbols[sym - 1];
-        // printf("%d\n", sym);
 
-        // printf("%s\n", symbol->str);
         strcpy(tmp, symbol->str);
 
         lexer->index = index + symbol->length;
@@ -266,9 +255,10 @@ int next_token(c_lexer *lexer, c_token *token){
     }
     token->token.length = i;
     c_str_realloc(&(token->token.str), tmp);
-    token->type = lexer_type(lexer, tmp);
-    token->id = token->type == 1 ? lexer_id(lexer, tmp) : 0;
-
+    if(token->type != 1){
+        token->type = token_type(lexer, tmp);
+    }
+   
     return 1;
 }
 
